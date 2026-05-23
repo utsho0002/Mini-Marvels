@@ -26,55 +26,73 @@ class _ChildRegisterState extends State<ChildRegister> {
     final supabase = Supabase.instance.client;
     final parentUserId = supabase.auth.currentUser!.id;
 
-    // Check duplicate PIN under same parent
-    final existing = await supabase
-        .from('child_users')
-        .select('id')
-        .eq('parent_id', parentUserId)
-        .eq('pin', _pin.text.trim())
-        .maybeSingle();
-
-    if (existing != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Another explorer already uses this PIN. Choose a different one.',
+    try {
+      await supabase.from('child_users').insert({
+        'parent_id': parentUserId,
+        'name': _name.text.trim(),
+        'pin': _pin.text.trim(),
+      });
+    } on PostgrestException catch (e) {
+      // PIN is a primary key — catch the unique/duplicate violation (Postgres code 23505)
+      if (e.code == '23505') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.all(16),
+            content: Row(
+              children: const [
+                Icon(Icons.error_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Another explorer already uses this PIN. Choose a different one.',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
           ),
-        ),
-      );
-      return;
+        );
+        return;
+      }
+      rethrow;
     }
 
-    // Insert child
-    await supabase.from('child_users').insert({
-      'parent_id': parentUserId,
-      'name': _name.text.trim(),
-      'pin': _pin.text.trim(),
-    });
-
     ScaffoldMessenger.of(context).showSnackBar(
-  SnackBar(
-    backgroundColor: const Color(0xFF1D4ED8),
-    behavior: SnackBarBehavior.floating,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    margin: const EdgeInsets.all(16),
-    content: Row(
-      children: const [
-        Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-        SizedBox(width: 10),
-        Text(
-          'Explorer added successfully!',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      SnackBar(
+        backgroundColor: const Color(0xFF1D4ED8),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        content: Row(
+          children: const [
+            Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+            SizedBox(width: 10),
+            Text(
+              'Explorer added successfully!',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
-      ],
-    ),
-    duration: const Duration(seconds: 3),
-  ),
-);
+        duration: const Duration(seconds: 3),
+      ),
+    );
 
-  Navigator.push(context, MaterialPageRoute(builder: (context)=>
-  ParentHomepage()
-  ));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ParentHomepage()),
+    );
   }
 
   // ─── Colors ────────────────────────────────────────────────────────────────
@@ -110,7 +128,6 @@ class _ChildRegisterState extends State<ChildRegister> {
     return FormField<String>(
       initialValue: pinController.text,
       validator: (value) {
-        // Form Key links directly to this validator
         final pin = (value ?? pinController.text).trim();
         if (pin.isEmpty) {
           return 'PIN is required';
@@ -134,9 +151,8 @@ class _ChildRegisterState extends State<ChildRegister> {
               obscuringCharacter: '●',
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               onChanged: (val) {
-                state.didChange(val); // Notifies Form Key of changes
-                state
-                    .validate(); // Provides seamless live error updates as they type
+                state.didChange(val);
+                state.validate();
                 if (onChanged != null) onChanged();
               },
               style: TextStyle(
@@ -233,7 +249,6 @@ class _ChildRegisterState extends State<ChildRegister> {
       ),
       child: Stack(
         children: [
-          // Clear/Close button top-right
           Align(
             alignment: Alignment.topRight,
             child: Container(
@@ -253,7 +268,6 @@ class _ChildRegisterState extends State<ChildRegister> {
             children: [
               const SizedBox(height: 10),
 
-              // Name label
               Text(
                 "Explorer's Name",
                 style: TextStyle(
@@ -264,7 +278,6 @@ class _ChildRegisterState extends State<ChildRegister> {
               ),
               const SizedBox(height: 8),
 
-              // Name field integrated seamlessly with native validation
               FormField<String>(
                 initialValue: nameController.text,
                 validator: (value) {
@@ -288,9 +301,8 @@ class _ChildRegisterState extends State<ChildRegister> {
                           ),
                         ],
                         onChanged: (val) {
-                          state.didChange(val); // Notifies Form Key of changes
-                          state
-                              .validate(); // Provides seamless live error updates as they type
+                          state.didChange(val);
+                          state.validate();
                           if (onNameChanged != null) onNameChanged();
                         },
                         style: TextStyle(color: textDark),
@@ -351,7 +363,6 @@ class _ChildRegisterState extends State<ChildRegister> {
 
               const SizedBox(height: 24),
 
-              // PIN label
               Text(
                 "Secret PIN",
                 style: TextStyle(
@@ -371,7 +382,6 @@ class _ChildRegisterState extends State<ChildRegister> {
               ),
               const SizedBox(height: 12),
 
-              // PIN field
               _buildPinField(
                 pinController: pinController,
                 isVisible: pinVisible,
@@ -547,21 +557,7 @@ class _ChildRegisterState extends State<ChildRegister> {
                           ],
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Skip Footer
-                    TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        "I'll do this later",
-                        style: TextStyle(
-                          color: textDark,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    ),                  
                   ],
                 ),
               ),
