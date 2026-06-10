@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:project_1/parent/parent_homepage.dart';
+import 'package:project_1/parent/parent_dashboard.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ChildRegister extends StatefulWidget {
@@ -11,29 +11,42 @@ class ChildRegister extends StatefulWidget {
 }
 
 class _ChildRegisterState extends State<ChildRegister> {
-  // ─── Form Validation Key ───────────────────────────────────────────────────
+  // Form key used before saving the child profile.
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  // ─── Child controllers ─────────────────────────────────────────────────────
+  // Holds the child name and PIN values.
   final TextEditingController _name = TextEditingController();
   final TextEditingController _pin = TextEditingController();
 
-  // ─── Toggle to show/hide PIN digits ────────────────────────────────────────
+  // Controls PIN show or hide state.
   bool _pinVisible = false;
 
-  // ─── Registration Functionality────────────────────────────────────────
+  // Saves the child profile under the logged-in parent.
+  // Validates and saves the child profile in Supabase.
   Future<void> registerChild(BuildContext context) async {
     final supabase = Supabase.instance.client;
-    final parentUserId = supabase.auth.currentUser!.id;
+    final parentUser = supabase.auth.currentUser;
+
+    if (parentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Parent is not logged in. Please login again.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final String parentUserId = parentUser.id;
 
     try {
-      await supabase.from('child_users').insert({
+      await supabase.from('child').insert({
         'parent_id': parentUserId,
-        'name': _name.text.trim(),
+        'child_name': _name.text.trim(),
         'pin': _pin.text.trim(),
       });
     } on PostgrestException catch (e) {
-      // PIN is a primary key — catch the unique/duplicate violation (Postgres code 23505)
+      // 23505 means this parent already has the same child PIN.
       if (e.code == '23505') {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -89,13 +102,13 @@ class _ChildRegisterState extends State<ChildRegister> {
       ),
     );
 
-    Navigator.push(
+    Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => ParentHomepage()),
+      MaterialPageRoute(builder: (context) => ParentDashboard()),
     );
   }
 
-  // ─── Colors ────────────────────────────────────────────────────────────────
+  // Page colors.
   final Color primaryPurple = const Color(0xFF5E17EB);
   final Color primaryGold = const Color(0xFFFFC914);
   final Color backgroundLight = const Color(0xFFF4F6FC);
@@ -104,6 +117,7 @@ class _ChildRegisterState extends State<ChildRegister> {
   final Color borderLight = const Color(0xFFCBD5E1);
   final Color errorRed = const Color(0xFFEF4444);
 
+  // Cleans up the text controllers when this page closes.
   @override
   void dispose() {
     _name.dispose();
@@ -111,14 +125,14 @@ class _ChildRegisterState extends State<ChildRegister> {
     super.dispose();
   }
 
-  // ─── Clears fields and clears active native form validation errors ─────────
+  // Clears the form and resets validation errors.
   void _clearChildFields() {
     _name.clear();
     _pin.clear();
     _formKey.currentState?.reset();
   }
 
-  // ─── A single PIN text field (4-digit, numbers only) ──────────────────────
+  // Builds the 4-digit PIN field with show/hide control.
   Widget _buildPinField({
     required TextEditingController pinController,
     required bool isVisible,
@@ -223,7 +237,7 @@ class _ChildRegisterState extends State<ChildRegister> {
     );
   }
 
-  // ─── The white card for the child ─────────────────────────────────────────
+  // Builds the main child profile form card.
   Widget _buildChildCard({
     required TextEditingController nameController,
     required TextEditingController pinController,
@@ -397,168 +411,189 @@ class _ChildRegisterState extends State<ChildRegister> {
 
   @override
   Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.of(context).size;
+
     return Scaffold(
-      backgroundColor: backgroundLight,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Form(
-              key: _formKey,
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 420),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24.0,
-                  vertical: 30.0,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Progress Bar
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Step 1: Parents',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: textGray,
+      backgroundColor: Colors.black12,
+      body: Center(
+        child: Container(
+          width: screenSize.width,
+          height: screenSize.height,
+          decoration: BoxDecoration(
+            color: backgroundLight,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.10),
+                blurRadius: 30,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: Scaffold(
+            backgroundColor: backgroundLight,
+            body: SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Form(
+                    key: _formKey,
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 30.0,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Progress labels.
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Step 1: Parents',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: textGray,
+                                ),
+                              ),
+                              Text(
+                                'Step 2: Kids',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryPurple,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        Text(
-                          'Step 2: Kids',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: primaryPurple,
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: primaryGold,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            height: 8,
+                          const SizedBox(height: 30),
+
+                          // Header icon.
+                          Container(
+                            width: 65,
+                            height: 65,
                             decoration: BoxDecoration(
-                              color: primaryGold,
-                              borderRadius: BorderRadius.circular(10),
+                              color: primaryPurple,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: primaryPurple.withOpacity(0.3),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 30),
-
-                    // Header Icon
-                    Container(
-                      width: 65,
-                      height: 65,
-                      decoration: BoxDecoration(
-                        color: primaryPurple,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: primaryPurple.withOpacity(0.3),
-                            blurRadius: 15,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.face_retouching_natural_rounded,
-                          color: Colors.white,
-                          size: 36,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Header Text
-                    Text(
-                      "Who's playing?",
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: primaryPurple,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Add your little explorer so they can\nstart their adventure.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: textDark.withOpacity(0.8),
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-
-                    // Child Card
-                    _buildChildCard(
-                      nameController: _name,
-                      pinController: _pin,
-                      pinVisible: _pinVisible,
-                      onTogglePinVisibility: () {
-                        setState(() => _pinVisible = !_pinVisible);
-                      },
-                      onClose: _clearChildFields,
-                      onNameChanged: () {},
-                      onPinChanged: () {},
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Finish Setup Button
-                    Container(
-                      width: double.infinity,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: primaryPurple.withOpacity(0.3),
-                            blurRadius: 15,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          if (_formKey.currentState!.validate()) {
-                            await registerChild(context);
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryPurple,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Finish Setup',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                            child: const Center(
+                              child: Icon(
+                                Icons.face_retouching_natural_rounded,
+                                color: Colors.white,
+                                size: 36,
                               ),
                             ),
-                            SizedBox(width: 8),
-                            Icon(Icons.rocket_launch, size: 22),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Header text.
+                          Text(
+                            "Who's playing?",
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: primaryPurple,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Add your little explorer so they can\nstart their adventure.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: textDark.withOpacity(0.8),
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+
+                          // Child profile card.
+                          _buildChildCard(
+                            nameController: _name,
+                            pinController: _pin,
+                            pinVisible: _pinVisible,
+                            onTogglePinVisibility: () {
+                              setState(() => _pinVisible = !_pinVisible);
+                            },
+                            onClose: _clearChildFields,
+                            onNameChanged: () {},
+                            onPinChanged: () {},
+                          ),
+
+                          const SizedBox(height: 32),
+
+                          // Finish setup button.
+                          Container(
+                            width: double.infinity,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(30),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: primaryPurple.withOpacity(0.3),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                if (_formKey.currentState!.validate()) {
+                                  await registerChild(context);
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryPurple,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Finish Setup',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Icon(Icons.rocket_launch, size: 22),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),                  
-                  ],
+                    ),
+                  ),
                 ),
               ),
             ),

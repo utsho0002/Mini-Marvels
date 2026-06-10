@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:project_1/user_authentication/role_screen.dart';
+import 'package:project_1/user_authentication/splash_screen_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async{
@@ -12,9 +13,9 @@ void main() async{
   );
 
   runApp(MaterialApp(
-    title: "Marvel",
+    title: "Mini Marvels",
     debugShowCheckedModeBanner: false,
-    home:RoleScreen(),
+    home:SplashScreenPage(),
   ));
 }
 
