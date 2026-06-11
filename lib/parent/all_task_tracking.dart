@@ -63,7 +63,8 @@ class _AllAssignedTasksPageState extends State<AllAssignedTasksPage> {
             status,
             assigned_date,
             due_date,
-            created_at
+            created_at,
+            expires_at
           ''')
           .eq('child_id', widget.childId)
           .eq('parent_id', currentUser.id)
@@ -150,6 +151,73 @@ class _AllAssignedTasksPageState extends State<AllAssignedTasksPage> {
     return '$year-$month-$day';
   }
 
+  String _formatDateOnly(dynamic value) {
+    final String rawValue = value?.toString().trim() ?? '';
+
+    if (rawValue.isEmpty) {
+      return 'Not set';
+    }
+
+    final DateTime? parsedDate = DateTime.tryParse(rawValue);
+
+    if (parsedDate == null) {
+      return rawValue.split('T').first;
+    }
+
+    final String year = parsedDate.year.toString().padLeft(4, '0');
+    final String month = parsedDate.month.toString().padLeft(2, '0');
+    final String day = parsedDate.day.toString().padLeft(2, '0');
+
+    return '$year-$month-$day';
+  }
+
+  String _formatDateTimeText(dynamic value) {
+    final String rawValue = value?.toString().trim() ?? '';
+
+    if (rawValue.isEmpty) {
+      return 'Not set';
+    }
+
+    final DateTime? parsedDateTime = DateTime.tryParse(rawValue);
+
+    if (parsedDateTime == null) {
+      return rawValue;
+    }
+
+    final DateTime localDateTime = parsedDateTime.toLocal();
+
+    final String year = localDateTime.year.toString().padLeft(4, '0');
+    final String month = localDateTime.month.toString().padLeft(2, '0');
+    final String day = localDateTime.day.toString().padLeft(2, '0');
+
+    final int hour = localDateTime.hour;
+    final int displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    final String minute = localDateTime.minute.toString().padLeft(2, '0');
+    final String period = hour >= 12 ? 'PM' : 'AM';
+
+    return '$year-$month-$day $displayHour:$minute $period';
+  }
+
+  String _assignedDateTimeText(Map<String, dynamic> task) {
+    final String createdAt = task['created_at']?.toString().trim() ?? '';
+
+    if (createdAt.isNotEmpty) {
+      return _formatDateTimeText(createdAt);
+    }
+
+    return _formatDateOnly(task['assigned_date']);
+  }
+
+  String _expireDateText(Map<String, dynamic> task) {
+    final String expiresAt = task['expires_at']?.toString().trim() ?? '';
+
+    if (expiresAt.isNotEmpty) {
+      return _formatDateTimeText(expiresAt);
+    }
+
+    return _formatDateOnly(task['due_date']);
+  }
+
   // Checks if the task was assigned today.
   bool _isTaskAssignedToday(Map<String, dynamic> task) {
     final String assignedDate = task['assigned_date']?.toString().trim() ?? '';
@@ -170,10 +238,6 @@ class _AllAssignedTasksPageState extends State<AllAssignedTasksPage> {
     int rejected = 0;
 
     for (final task in _assignedTasks) {
-      if (!_isTaskAssignedToday(task)) {
-        continue;
-      }
-
       total++;
 
       final String status = _readTaskStatus(task);
@@ -223,7 +287,7 @@ class _AllAssignedTasksPageState extends State<AllAssignedTasksPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Today's Task Summary",
+            "All Task Summary",
             style: TextStyle(
               color: primaryPurple,
               fontSize: 18,
@@ -232,7 +296,7 @@ class _AllAssignedTasksPageState extends State<AllAssignedTasksPage> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Only tasks assigned today are counted here.',
+            'All assigned tasks are counted here.',
             style: TextStyle(
               color: textDark.withOpacity(0.65),
               fontSize: 13,
@@ -367,6 +431,12 @@ class _AllAssignedTasksPageState extends State<AllAssignedTasksPage> {
                 ),
                 statusText: _statusText(
                   _assignedTasks[index]['status']?.toString() ?? 'assigned',
+                ),
+                assignedDateTimeText: _assignedDateTimeText(
+                  _assignedTasks[index],
+                ),
+                expireDateText: _expireDateText(
+                  _assignedTasks[index],
                 ),
               ),
               if (index != _assignedTasks.length - 1)
@@ -512,12 +582,16 @@ class AssignedTaskRow extends StatelessWidget {
   final String stepNumber;
   final String taskTitle;
   final String statusText;
+  final String assignedDateTimeText;
+  final String expireDateText;
 
   const AssignedTaskRow({
     super.key,
     required this.stepNumber,
     required this.taskTitle,
     required this.statusText,
+    required this.assignedDateTimeText,
+    required this.expireDateText,
   });
 
   // Chooses a soft badge color based on task status.
@@ -543,10 +617,10 @@ class AssignedTaskRow extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(36.0),
+        borderRadius: BorderRadius.circular(32.0),
         boxShadow: [
           BoxShadow(
             color: Colors.purple.withOpacity(0.03),
@@ -555,49 +629,140 @@ class AssignedTaskRow extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: const BoxDecoration(
-              color: badgeYellow,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              stepNumber,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-                color: Colors.black87,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: const BoxDecoration(
+                  color: badgeYellow,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  stepNumber,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black87,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  taskTitle,
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: textDark,
+                    height: 1.15,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Text(
-              taskTitle,
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: BorderRadius.circular(18.0),
+                ),
+                child: Text(
+                  statusText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              _TaskMetaChip(
+                icon: Icons.schedule_rounded,
+                label: 'Assigned',
+                value: assignedDateTimeText,
+              ),
+              _TaskMetaChip(
+                icon: Icons.event_busy_rounded,
+                label: 'Expires',
+                value: expireDateText,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskMetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _TaskMetaChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const Color textDark = Color(0xFF334155);
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 250),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18.0),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: const Color(0xFF64748B),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$label: ',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  TextSpan(
+                    text: value,
+                  ),
+                ],
+              ),
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
                 color: textDark,
-                height: 1.1,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: statusColor,
-              borderRadius: BorderRadius.circular(20.0),
-            ),
-            child: Text(
-              statusText,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),

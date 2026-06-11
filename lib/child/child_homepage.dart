@@ -550,14 +550,39 @@ class _ChildHomepageState extends State<ChildHomepage>
                       children: [
                         buildHeroHeader(),
                         const SizedBox(height: 32),
-                        const Text(
-                          "Your Adventure Map",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
-                          ),
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                "Your Adventure Map",
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.18),
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                icon: const Icon(
+                                  Icons.refresh_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                                onPressed: () {
+                                  fetchChildData();
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
                         Expanded(

@@ -499,7 +499,7 @@ class ChildCard extends StatelessWidget {
                         _openProvidedTasksPage(context);
                       },
                       icon: const Icon(Icons.bar_chart_rounded, size: 18),
-                      label: const Text('Provided Tasks'),
+                      label: const Text('All Task Summary'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: lightPurpleButton.withOpacity(0.7),
                         foregroundColor: const Color(0xFF1E293B),
